@@ -1,8 +1,10 @@
+//go:build linux
 // +build linux
 
 package tcpraw
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -380,9 +382,13 @@ func (conn *TCPConn) SetWriteBuffer(bytes int) error {
 	return err
 }
 
-// Dial connects to the remote TCP port,
-// and returns a single packet-oriented connection
 func Dial(network, address string) (*TCPConn, error) {
+	return DialContext(context.Background(), network, address)
+}
+
+// DialContext connects to the remote TCP port,
+// and returns a single packet-oriented connection
+func DialContext(ctx context.Context, network, address string) (*TCPConn, error) {
 	// remote address resolve
 	raddr, err := net.ResolveTCPAddr(network, address)
 	if err != nil {
@@ -397,10 +403,12 @@ func Dial(network, address string) (*TCPConn, error) {
 
 	// create an established tcp connection
 	// will hack this tcp connection for packet transmission
-	tcpconn, err := net.DialTCP(network, nil, raddr)
+	dialer := &net.Dialer{}
+	_tcpconn, err := dialer.DialContext(ctx, network, address)
 	if err != nil {
 		return nil, err
 	}
+	tcpconn := _tcpconn.(*net.TCPConn)
 
 	// fields
 	conn := new(TCPConn)
